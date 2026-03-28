@@ -9,7 +9,6 @@ from agents.captions import generate_captions
 
 
 def clean_filename(text):
-    # Remove any character that isn't alphanumeric, space, underscore or hyphen
     return re.sub(r'[^\w\s-]', '', text).strip().replace(' ', '_')[:50]
 
 
@@ -37,12 +36,20 @@ def generate_video():
 
     # Step 4: Assemble video
     print("\n[4/5] Assembling final video...")
-    video_filename = f"{song_slug}_{story['year'][:3]}0s.mp4"
-    output_path = assemble_video(video_urls, audio_path, video_filename)
+    temp_filename = f"temp_{song_slug}.mp4"
+    temp_path = assemble_video(video_urls, audio_path, temp_filename)
 
-    # Step 5: Add captions
+    # Step 5: Add captions and save as final file
     print("\n[5/5] Adding captions...")
-    final_path = generate_captions(audio_path, output_path, output_path)
+    final_filename = f"{song_slug}_{story['year'][:3]}0s.mp4"
+    final_path = f"outputs/{final_filename}"
+    generate_captions(audio_path, temp_path, final_path)
+
+    # Remove the temp video without captions
+    try:
+        os.remove(temp_path)
+    except Exception:
+        pass
 
     print("\n" + "=" * 50)
     print(f"DONE! Your video is ready: {final_path}")

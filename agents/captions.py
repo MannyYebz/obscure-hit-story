@@ -1,5 +1,6 @@
 import whisper
 import os
+import subprocess
 
 
 def generate_captions(audio_path, video_path, output_path):
@@ -20,13 +21,12 @@ def generate_captions(audio_path, video_path, output_path):
             text = segment["text"].strip()
             f.write(f"{i+1}\n{start} --> {end}\n{text}\n\n")
 
-    # Use ffmpeg to burn captions into video
-    import subprocess
+    # Burn captions with Netflix-style sizing
     captioned_path = output_path.replace(".mp4", "_captioned.mp4")
     subprocess.run([
         "ffmpeg", "-y",
         "-i", video_path,
-        "-vf", f"subtitles={srt_path}:force_style='FontSize=18,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,Outline=2,Alignment=2'",
+        "-vf", f"subtitles={srt_path}:force_style='FontSize=11,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,Outline=1,Bold=1,Alignment=2,MarginV=20'",
         "-c:a", "copy",
         captioned_path
     ], check=True)

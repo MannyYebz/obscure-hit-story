@@ -1,10 +1,16 @@
 import os
+import re
 from datetime import datetime
 from agents.script_writer import generate_script
 from agents.voiceover import generate_voiceover
 from agents.visuals import fetch_stock_footage
 from agents.assembler import assemble_video
 from agents.captions import generate_captions
+
+
+def clean_filename(text):
+    # Remove any character that isn't alphanumeric, space, underscore or hyphen
+    return re.sub(r'[^\w\s-]', '', text).strip().replace(' ', '_')[:50]
 
 
 def generate_video():
@@ -19,7 +25,8 @@ def generate_video():
 
     # Step 2: Generate voiceover
     print("\n[2/5] Generating voiceover...")
-    audio_filename = f"voiceover_{story['song'].replace(' ', '_')[:30]}.mp3"
+    song_slug = clean_filename(story['song'])
+    audio_filename = f"voiceover_{song_slug}.mp3"
     audio_path = generate_voiceover(story["script"], audio_filename)
 
     # Step 3: Fetch visuals
@@ -30,7 +37,6 @@ def generate_video():
 
     # Step 4: Assemble video
     print("\n[4/5] Assembling final video...")
-    song_slug = story['song'].replace(" ", "_").replace("/", "-")[:50]
     video_filename = f"{song_slug}_{story['year'][:3]}0s.mp4"
     output_path = assemble_video(video_urls, audio_path, video_filename)
 

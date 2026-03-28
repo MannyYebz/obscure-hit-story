@@ -2,6 +2,7 @@ import os
 import requests
 import tempfile
 import subprocess
+import random
 from PIL import Image
 
 # Patch for Pillow 10+ compatibility with MoviePy 1.0.3
@@ -9,6 +10,35 @@ if not hasattr(Image, 'ANTIALIAS'):
     Image.ANTIALIAS = Image.LANCZOS
 
 from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips
+
+
+BACKGROUND_TRACKS = [
+    "https://archive.org/download/Free_20s_Jazz_Collection/hotlips.mp3",
+    "https://archive.org/download/Free_20s_Jazz_Collection/sheik.mp3",
+    "https://archive.org/download/Free_20s_Jazz_Collection/panama.mp3",
+    "https://archive.org/download/Free_20s_Jazz_Collection/copenhag.mp3",
+    "https://archive.org/download/Free_20s_Jazz_Collection/jazzdanc.mp3",
+    "https://archive.org/download/Free_20s_Jazz_Collection/lowdown.mp3",
+    "https://archive.org/download/Free_20s_Jazz_Collection/spanlove.mp3",
+    "https://archive.org/download/Free_20s_Jazz_Collection/changes.mp3",
+]
+
+
+def get_background_music():
+    track_url = random.choice(BACKGROUND_TRACKS)
+    print(f"Downloading background music...")
+    try:
+        response = requests.get(track_url, stream=True, timeout=30)
+        if response.status_code == 200:
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+            for chunk in response.iter_content(chunk_size=8192):
+                tmp.write(chunk)
+            tmp.close()
+            print(f"Background music downloaded successfully")
+            return tmp.name
+    except Exception as e:
+        print(f"Could not download background music: {e}")
+    return None
 
 
 def download_file(url, suffix):
@@ -50,20 +80,46 @@ def assemble_video(video_urls, audio_path, output_filename="final_video.mp4"):
     for clip in clips:
         clip.close()
 
-    print("Merging audio and video with ffmpeg...")
     output_path = f"outputs/{output_filename}"
-    subprocess.run([
-        "ffmpeg", "-y",
-        "-i", temp_video,
-        "-i", audio_path,
-        "-c:v", "copy",
-        "-c:a", "aac",
-        "-shortest",
-        output_path
-    ], check=True)
+    music_path = get_background_music()
+
+    if music_path:
+        print("Merging voiceover, background music and video with ffmpeg...")
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-i", temp_video,
+            "-i", audio_path,
+            "-i", music_path,
+            "-filter_complex",
+            "[1:a]volume=1.0[voice];[2:a]volume=0.08[music];[voice][music]amix=inputs=2:duration=first[aout]",
+            "-map", "0:v",
+            "-map", "[aout]",
+            "-c:v", "copy",
+            "-c:a", "aac",
+            "-shortest",
+            output_path
+        ], check=True)
+        try:
+            os.remove(music_path)
+        except Exception:
+            pass
+    else:
+        print("No background music, merging without it...")
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-i", temp_video,
+            "-i", audio_path,
+            "-c:v", "copy",
+            "-c:a", "aac",
+            "-shortest",
+            output_path
+        ], check=True)
 
     print("Cleaning up temp files...")
-    os.remove(temp_video)
+    try:
+        os.remove(temp_video)
+    except Exception:
+        pass
     for path in clip_paths:
         try:
             os.remove(path)

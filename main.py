@@ -1,6 +1,5 @@
 import os
 import re
-from datetime import datetime
 from agents.script_writer import generate_script
 from agents.voiceover import generate_voiceover
 from agents.visuals import fetch_stock_footage
@@ -10,6 +9,30 @@ from agents.captions import generate_captions
 
 def clean_filename(text):
     return re.sub(r'[^\w\s-]', '', text).strip().replace(' ', '_')[:50]
+
+
+def get_visual_query(story):
+    year = story['year'][:3] + '0s'
+    script = story['script'].lower()
+
+    if any(w in script for w in ['jazz', 'blues', 'soul', 'motown']):
+        vibe = 'jazz club vintage'
+    elif any(w in script for w in ['rock', 'guitar', 'band', 'electric']):
+        vibe = 'rock concert vintage'
+    elif any(w in script for w in ['piano', 'classical', 'orchestra']):
+        vibe = 'piano classical music'
+    elif any(w in script for w in ['disco', 'dance', 'club', 'party']):
+        vibe = 'disco nightclub dance'
+    elif any(w in script for w in ['folk', 'acoustic', 'country']):
+        vibe = 'acoustic folk music'
+    elif any(w in script for w in ['studio', 'record', 'label', 'producer']):
+        vibe = 'vintage recording studio'
+    elif any(w in script for w in ['war', 'protest', 'vietnam', 'civil rights']):
+        vibe = 'vintage protest street'
+    else:
+        vibe = 'vintage music performance'
+
+    return f"{vibe} {year}"
 
 
 def generate_video():
@@ -28,9 +51,10 @@ def generate_video():
     audio_filename = f"voiceover_{song_slug}.mp3"
     audio_path = generate_voiceover(story["script"], audio_filename)
 
-    # Step 3: Fetch visuals
+    # Step 3: Fetch visuals — matched to the vibe of the story
     print("\n[3/5] Fetching stock footage...")
-    search_query = f"vintage music {story['year'][:3]}0s"
+    search_query = get_visual_query(story)
+    print(f"Visual query: {search_query}")
     videos = fetch_stock_footage(search_query, num_videos=5)
     video_urls = [v["url"] for v in videos]
 
@@ -45,9 +69,16 @@ def generate_video():
     final_path = f"outputs/{final_filename}"
     generate_captions(audio_path, temp_path, final_path)
 
-    # Remove the temp video without captions
+    # Remove temp video without captions
     try:
         os.remove(temp_path)
+    except Exception:
+        pass
+
+    # Delete voiceover to save ElevenLabs storage
+    try:
+        os.remove(audio_path)
+        print("Voiceover cleaned up.")
     except Exception:
         pass
 
